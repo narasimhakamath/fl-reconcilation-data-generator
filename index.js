@@ -126,6 +126,7 @@ const main = async () => {
 			throw "Ledger creation failed";
 		console.log(chalk.green.bold(`✓ Ledger created successfully with ID: ${ledger._id}`));
 
+		await delay(5000);
 
 		const { ACCOUNT_COUNT, TRANSACTION_COUNT } = await inquirer.prompt([
 			{
@@ -137,6 +138,7 @@ const main = async () => {
 				message: `How many transactions do you want to create?`
 			}
 		]);
+
 
 		if(isNaN(ACCOUNT_COUNT))
 			throw "Invalid account number count";
@@ -158,10 +160,10 @@ const main = async () => {
 
 			accountIDs.push(account._id);
 
-			delay(100);
-
 			const amount = faker.random.number({min: TRANSACTION_COUNT * 50, max: TRANSACTION_COUNT * 100, precision: COUNTRY_DATA[COUNTRY_CODE]['precision']});
 			const transactionReferenceID = uuidv4();
+
+			await delay(300);
 
 			const transaction = await TRANSACTION_REQUESTS.POST({
 				accountId: account._id,
@@ -192,12 +194,14 @@ const main = async () => {
 			if(!statement._id)
 				throw `Failed to create statement for the transaction ID: ${transaction._id}`;
 			console.log(chalk.green.bold(`✓ Statement saved for CREDIT of ${amount} to ${account._id}`));
+			console.log();
 		}
 
 		const getRandomAccountId = () => accountIDs[Math.floor(Math.random() * accountIDs.length)];
 		const getBoolean = (probability = 0.3) => Math.random() < probability;
 
 		for(let i = 0; i < TRANSACTION_COUNT; i++) {
+			await delay(300);
 			console.log(chalk.white(`Creating transaction #${i + 1}`));
 			const accountID = getRandomAccountId();
 
@@ -260,6 +264,7 @@ const main = async () => {
 					throw `Failed to create statement for the payment ID: ${payment[0]._id}`;
 				console.log(chalk.green.bold(`✓ Statement saved for CREDIT of ${amount} to ${accountID}`));
 			}
+			console.log();
 		}
 		
 

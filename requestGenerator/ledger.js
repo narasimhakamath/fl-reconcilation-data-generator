@@ -18,7 +18,7 @@ const generateLedgerID = () => {
 // Function to make the login request
 async function POST(request) {
 	try {
-		console.log();
+		;
 		const REQUEST_URL = `${request.APP.baseURL}/api/c/${request.APP.appName}/ledgers`;
 
 		const REQUEST_BODY = {
@@ -65,12 +65,12 @@ async function POST(request) {
 			}
 		}
 
-		console.log(chalk.white.bold(`Request URL: ${REQUEST_URL}`));
-		console.log(chalk.white.bold(`Request Body:`), chalk.white(JSON.stringify(REQUEST_BODY)));
+		// console.log(chalk.white.bold(`Request URL: ${REQUEST_URL}`));
+		// console.log(chalk.white.bold(`Request Body:`), chalk.white(JSON.stringify(REQUEST_BODY)));
 
 		const response = await axios.post(REQUEST_URL, REQUEST_BODY, REQUEST_HEADERS);
 
-		console.log();
+		;
 
 		return response.data;
 	} catch (error) {
