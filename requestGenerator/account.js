@@ -42,12 +42,11 @@ async function POST(request) {
 
 		const response = await axios.post(REQUEST_URL, REQUEST_BODY, REQUEST_HEADERS);
 
-		;
-
 		return response.data;
 	} catch (error) {
 		console.log(chalk.red.bold(`Account creation error:`), chalk.white(JSON.stringify(error)))
 		return null;
+	}
 }
-}
+
 module.exports = { POST };

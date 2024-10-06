@@ -101,7 +101,7 @@ const main = async () => {
 		});
 
 		if(!party?._id)
-			throw "Party creation failed";
+			throw "Failed to create party";
 		console.log(chalk.green.bold(`✓ Party created successfully with ID: ${party._id}`));
 
 
@@ -111,7 +111,7 @@ const main = async () => {
 		});
 
 		if(!product?._id)
-			throw "Product creation failed";
+			throw "Failed to create product";
 		console.log(chalk.green.bold(`✓ Product created successfully with ID: ${product._id}`));
 
 		const ledger = await LEDGER_REQUESTS.POST({
@@ -123,7 +123,7 @@ const main = async () => {
 		});
 
 		if(!ledger?._id)
-			throw "Ledger creation failed";
+			throw "Failed to create ledger";
 		console.log(chalk.green.bold(`✓ Ledger created successfully with ID: ${ledger._id}`));
 
 		await delay(5000);
@@ -143,7 +143,11 @@ const main = async () => {
 		if(isNaN(ACCOUNT_COUNT))
 			throw "Invalid account number count";
 
+		if(isNaN(TRANSACTION_COUNT))
+			throw "Invalid transaction count";
+
 		const accountIDs = [];
+		const statementsData = [];
 
 		for(let i = 0; i < ACCOUNT_COUNT; i++) {
 			console.log(chalk.white(`Creating account #${i + 1}`));
@@ -154,46 +158,49 @@ const main = async () => {
 				token: TOKEN
 			});
 
-			if(!account._id)
-				throw "Account creation failed";
-			console.log(chalk.green.bold(`✓ Account created successfully with ID: ${account._id}`));
+			if(!account._id) {
+				console.log(chalk.red.bold(`✗ Failed to create account`));
+			} else {
+				console.log(chalk.green.bold(`✓ Account created successfully with ID: ${account._id}`));
 
-			accountIDs.push(account._id);
+				accountIDs.push(account._id);
+				
+				const amount = faker.random.number({min: TRANSACTION_COUNT * 50, max: TRANSACTION_COUNT * 100, precision: COUNTRY_DATA[COUNTRY_CODE]['precision']});
+				const transactionReferenceID = uuidv4();
 
-			const amount = faker.random.number({min: TRANSACTION_COUNT * 50, max: TRANSACTION_COUNT * 100, precision: COUNTRY_DATA[COUNTRY_CODE]['precision']});
-			const transactionReferenceID = uuidv4();
+				await delay(300);
+				
+				const transaction = await TRANSACTION_REQUESTS.POST({
+					accountId: account._id,
+					ledgerId: ledger._id,
+					referenceId: transactionReferenceID,
+					type: "Money-In",
+					amount: amount,
+					country: COUNTRY_DATA[COUNTRY_CODE],
+					APP: APP,
+					token: TOKEN
+				});
 
-			await delay(300);
+				if(!transaction?._id)
+					console.log(chalk.red.bold(`✗ Failed to credit ${amount} to ${account._id}`));
+				else if(transaction?._id)
+					console.log(chalk.green.bold(`✓ Credited ${amount} to ${account._id}`));
 
-			const transaction = await TRANSACTION_REQUESTS.POST({
-				accountId: account._id,
-				ledgerId: ledger._id,
-				referenceId: transactionReferenceID,
-				type: "Money-In",
-				amount: amount,
-				country: COUNTRY_DATA[COUNTRY_CODE],
-				APP: APP,
-				token: TOKEN
-			});
 
-			if(!transaction?._id)
-				throw `Failed to add money in account ID: ${account._id}`;
-			console.log(chalk.green.bold(`✓ Credited ${amount} to ${account._id}`));
+				const statement = await STATEMENT_REQUESTS.generateRequestBody({
+					physicalAccountNumber: ledger.internalAccount.number,
+					ledgerId: ledger._id,
+					indicator: 'CREDIT',
+					transactionReferenceID: transactionReferenceID,
+					amount: amount,
+					country: COUNTRY_DATA[COUNTRY_CODE],
+					APP: APP,
+					token: TOKEN
+				});
+	
+				statementsData.push(statement);
+			}
 
-			const statement = await STATEMENT_REQUESTS.POST({
-				physicalAccountNumber: ledger.internalAccount.number,
-				ledgerId: ledger._id,
-				indicator: 'CREDIT',
-				transactionReferenceID: transactionReferenceID,
-				amount: amount,
-				country: COUNTRY_DATA[COUNTRY_CODE],
-				APP: APP,
-				token: TOKEN
-			});
-
-			if(!statement._id)
-				throw `Failed to create statement for the transaction ID: ${transaction._id}`;
-			console.log(chalk.green.bold(`✓ Statement saved for CREDIT of ${amount} to ${account._id}`));
 			console.log();
 		}
 
@@ -201,7 +208,7 @@ const main = async () => {
 		const getBoolean = (probability = 0.3) => Math.random() < probability;
 
 		for(let i = 0; i < TRANSACTION_COUNT; i++) {
-			await delay(300);
+			await delay(600);
 			console.log(chalk.white(`Creating transaction #${i + 1}`));
 			const accountID = getRandomAccountId();
 
@@ -218,11 +225,12 @@ const main = async () => {
 					token: TOKEN
 				});
 
-				if(!payment[0]._id)
-					throw "Failed to perform a payout";
-				console.log(chalk.green.bold(`✓ Debited ${amount} to ${accountID}`));
+				if(!payment?.length || !payment[0]?._id)
+					console.log(chalk.red.bold(`✗ Failed to debit ${amount} to ${accountID}`));
+				else if(payment?.length && payment[0]?._id)
+					console.log(chalk.green.bold(`✓ Debited ${amount} to ${accountID}`));
 
-				const statement = await STATEMENT_REQUESTS.POST({
+				const statement = await STATEMENT_REQUESTS.generateRequestBody({
 					physicalAccountNumber: ledger.internalAccount.number,
 					ledgerId: ledger._id,
 					indicator: 'DEBIT',
@@ -233,10 +241,7 @@ const main = async () => {
 					token: TOKEN
 				});
 
-				if(!statement._id)
-					throw `Failed to create statement for the payment ID: ${payment[0]._id}`;
-				console.log(chalk.green.bold(`✓ Statement saved for DEBIT of ${amount} to ${accountID}`));
-
+				statementsData.push(statement);
 			} else {
 				const transaction = await TRANSACTION_REQUESTS.POST({
 					accountId: accountID,
@@ -249,7 +254,12 @@ const main = async () => {
 					token: TOKEN
 				});
 
-				const statement = await STATEMENT_REQUESTS.POST({
+				if(!transaction?._id)
+					console.log(chalk.red.bold(`✗ Failed to debit ${amount} to ${accountID}`));
+				else if(transaction?._id)
+					console.log(chalk.green.bold(`✓ Debited ${amount} to ${accountID}`));
+
+				const statement = await STATEMENT_REQUESTS.generateRequestBody({
 					physicalAccountNumber: ledger.internalAccount.number,
 					ledgerId: ledger._id,
 					indicator: 'CREDIT',
@@ -260,15 +270,32 @@ const main = async () => {
 					token: TOKEN
 				});
 
-				if(!statement._id)
-					throw `Failed to create statement for the payment ID: ${payment[0]._id}`;
-				console.log(chalk.green.bold(`✓ Statement saved for CREDIT of ${amount} to ${accountID}`));
+				statementsData.push(statement);
 			}
+
 			console.log();
 		}
-		
 
+		if(statementsData.length) {
+			console.log();
+			console.log(`Statements - Request Body: ${JSON.stringify(statements)}`);
+			console.log();
 
+			const statements = await STATEMENT_REQUESTS.bulkPOST({
+				APP: APP,
+				token: TOKEN,
+				REQUEST_BODY: statementsData
+			});
+
+			if(statements?.length)
+				console.log(chalk.white.bold(`✓ Bulk inserting ${statements.length} statements`));
+
+			statements?.forEach(statement => {
+				console.log(chalk.green.bold(`✓ Statement logged for ${statement.indicator} of ${statement.amount} to physical account for transaction reference ID: ${statement.transactionReferenceId}`));
+			});
+		}
+
+		console.log(chalk.green.bold(`✓ Script run successfully.`));
 	} catch(error) {
 		console.log(chalk.red.bold(`✗ ${error}`));
 	}

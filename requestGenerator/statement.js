@@ -34,6 +34,44 @@ async function POST(request) {
 	} catch (error) {
 		console.log(chalk.red.bold(`Statement creation error:`), chalk.white(error))
 		return null;
+	}
 }
-}
-module.exports = { POST };
+
+async function generateRequestBody(request) {
+	const REQUEST_BODY = {
+		physicalAccountId: request.physicalAccountNumber,
+		ledgerId: request.ledgerId,
+		indicator: request.indicator,
+		transactionReferenceId: request.transactionReferenceID,
+		amount: request.amount,
+		currency: request.country.currencyCode,
+		created: new Date()?.toISOString()
+	};
+
+	return REQUEST_BODY;
+};
+
+async function bulkPOST(request) {
+	try {
+		const REQUEST_URL = `${request.APP.baseURL}/api/c/${request.APP.appName}/statements/utils/bulkUpsert?update=false&insert=true`;
+	
+		const REQUEST_BODY = {
+			docs: request.REQUEST_BODY
+		};
+	
+		const REQUEST_HEADERS = {
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': `JWT ${request.token}`
+			}
+		}
+
+		const response = await axios.post(REQUEST_URL, REQUEST_BODY, REQUEST_HEADERS);
+		return response.data;
+	} catch(error) {
+		console.log(chalk.red.bold(`Statement creation error:`), chalk.white(error))
+		return null;
+	}
+};
+
+module.exports = { POST, generateRequestBody, bulkPOST };
