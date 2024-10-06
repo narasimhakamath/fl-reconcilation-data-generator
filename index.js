@@ -278,8 +278,6 @@ const main = async () => {
 
 		if(statementsData.length) {
 			console.log();
-			console.log(`Statements - Request Body: ${JSON.stringify(statements)}`);
-			console.log();
 
 			const statements = await STATEMENT_REQUESTS.bulkPOST({
 				APP: APP,
